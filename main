@@ -1,0 +1,212 @@
+.data
+    tabuleiro:       .space 9                     # 0=vazio, 1=X, 2=O
+    exibicao:        .space 9                     # '1'-'9' ou 'X'/'O'
+    msg_inicio:      .asciiz "\n=== JOGO DA VELHA ===\n"
+    msg_jogador:     .asciiz "\nJogador "
+    msg_x:           .asciiz "X"
+    msg_o:           .asciiz "O"
+    msg_posicao:     .asciiz ", digite posicao (1-9): "
+    msg_venceu:      .asciiz " \nVENCEU!!!\n"
+    msg_empate:      .asciiz " \nEMPATE!\n"
+    nova_linha:      .asciiz "\n"
+    separador:       .asciiz " | "
+    linha_div:       .asciiz "-----------\n"
+
+.text
+.globl main
+
+main:
+    jal inicializar_tabuleiro
+    li $s0, 1                        # 1 = X, 2 = O (jogador atual)
+    li $s1, 0                        # contador de jogadas
+
+loop_jogo:
+    jal imprimir_tabuleiro
+    jal mostrar_jogador
+    jal ler_jogada_1_9
+    jal colocar_peca
+    jal verificar_vitoria
+    bnez $v0, jogador_venceu
+    jal verificaempate
+    bnez $v0, jogo_empatado
+
+    xori $s0, $s0, 3                 # alterna X e O // 1 e 2
+    addi $s1, $s1, 1
+    j loop_jogo
+
+jogador_venceu:
+    jal imprimir_tabuleiro
+    li $v0, 4 #imprime a string vitoria se ganhar
+    la $a0, msg_venceu
+    syscall
+    j fim
+
+jogo_empatado:
+    jal imprimir_tabuleiro
+    li $v0, 4 #imprime a string empate se der velha
+    la $a0, msg_empate
+    syscall
+    j fim
+
+fim:
+    li $v0, 10 #encerra o progrma
+    syscall
+
+inicializar_tabuleiro:
+    li $t0, 0 #indice i =0-8
+    la $t1, tabuleiro
+    la $t2, exibicao
+loop_init:
+    beq $t0, 9, fim_init #verifica se tem 9 jogadas e finaliza
+    sb $zero, 0($t1) #tabuleiro vazio
+    addi $t3, $t0, 49 #ascii i + 1 
+    sb $t3, 0($t2) #salva em exibição
+    addi $t1, $t1, 1 #avança tabuleiro
+    addi $t2, $t2, 1 #avança exibição
+    addi $t0, $t0, 1 #incrementa o indice
+    j loop_init
+fim_init:
+    jr $ra
+
+imprimir_tabuleiro:
+    li $v0, 4                 
+    la $a0, nova_linha
+    syscall
+    li $t0, 0 #indice
+    la $t1, exibicao
+loop_print:
+    beq $t0, 9, fim_print #se indice = 9 print mensagem
+
+    lb $a0, 0($t1)
+    li $v0, 11 #imprime caractere
+    syscall
+
+    li $v0, 4
+    la $a0, separador #imprime a barra |
+    syscall
+
+    addi $t1, $t1, 1 #avança o ponteiro
+    addi $t0, $t0, 1 #incrementao indice
+
+    rem $t2, $t0, 3 # se o resto de i%3 nao for 0 continua, indice !+ de 9
+    bnez $t2, loop_print
+
+    li $v0, 4
+    la $a0, nova_linha #imprime o \n 
+    syscall
+
+    beq $t0, 9, fim_print# se a ultima for impressa acaba
+    la $a0, linha_div #imprime o linha para dividir o tabuleiro quando rodar
+    syscall
+    j loop_print
+fim_print:
+    jr $ra
+
+mostrar_jogador:
+    li $v0, 4 #print X ou O
+    la $a0, msg_jogador
+    syscall
+
+    beq $s0, 1, eh_x #verifica se é x
+    la $a0, msg_o
+    j mostra
+eh_x:
+    la $a0, msg_x
+mostra:
+    syscall #imprimir X ou 0
+    la $a0, msg_posicao 
+    syscall #print posiçõa
+    jr $ra
+
+ler_jogada_1_9:
+    li $v0, 5 #ler input do usuario
+    syscall
+    addi $v0, $v0, -1 #na tela é de 1 a 9 mas o computador le de 0-8
+    jr $ra
+
+colocar_peca:
+    la $t1, tabuleiro
+    add $t1, $t1, $v0 #endere~ço de tabuleiro
+    sb $s0, 0($t1) #salvar x ou O
+
+    la $t1, exibicao
+    add $t1, $t1, $v0 #endereço de exibição
+    beq $s0, 1, coloca_x
+    li $t2, 'O'
+    j grava
+coloca_x:
+    li $t2, 'X'
+grava:
+    sb $t2, 0($t1) #salva o caractere digitado
+    jr $ra
+
+verificar_vitoria:
+    la $t0, tabuleiro #checa todas as condiçoes de vitoria
+    li $t5, 0#contador de linhas
+checar_linhas:
+    beq $t5, 3, checar_colunas#3 linhas checadas
+    lb $t1, 0($t0)
+    lb $t2, 1($t0)
+    lb $t3, 2($t0)
+    beq $t1, $t2, linha_ok #verifica se a linha foi preenchida
+    j proxima_linha
+linha_ok:
+    beq $t1, $t3, vitoria_se_nao_vazio #verifica se a linha nao é 0
+proxima_linha:
+    addi $t0, $t0, 3#pula para prox linha 0-3-6
+    addi $t5, $t5, 1
+    j checar_linhas
+
+checar_colunas:
+    la $t0, tabuleiro
+    li $t5, 0 #contador de colunas
+checar_c:
+    beq $t5, 3, checar_diagonais #3 colunas checadas
+    lb $t1, 0($t0)
+    lb $t2, 3($t0)
+    lb $t3, 6($t0)
+    beq $t1, $t2, coluna_ok
+    j proxima_coluna
+coluna_ok:
+    beq $t1, $t3, vitoria_se_nao_vazio
+proxima_coluna:#pula as colunas 0,1,2
+    addi $t0, $t0, 1
+    addi $t5, $t5, 1
+    j checar_c
+
+checar_diagonais:
+    la $t0, tabuleiro #chega diagonal principal
+    lb $t1, 0($t0)
+    lb $t2, 4($t0)
+    lb $t3, 8($t0)
+    beq $t1, $t2, diag1_ok
+    j diag2
+diag1_ok:
+    beq $t1, $t3, vitoria_se_nao_vazio
+
+diag2:
+    lb $t1, 2($t0)
+    lb $t2, 4($t0)
+    lb $t3, 6($t0)
+    beq $t1, $t2, diag2_ok
+    j sem_vitoria
+diag2_ok:
+    beq $t1, $t3, vitoria_se_nao_vazio
+
+vitoria_se_nao_vazio:#se valor for 0 nao é vitoria
+    beq $t1, $zero, sem_vitoria
+    li $v0, 1
+    jr $ra
+
+sem_vitoria:
+    li $v0, 0 #0 nao é vitoria
+    jr $ra
+
+verificaempate: #se tem 9 jogadas e ninh=guem ganhou empata
+    beq $s1, 9, empate
+    li $v0, 0
+    jr $ra
+    
+empate:
+    li $v0, 1
+    jr $ra
