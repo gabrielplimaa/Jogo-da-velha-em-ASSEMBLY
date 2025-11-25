@@ -1,6 +1,6 @@
 # 🎮 Jogo da Velha em Assembly MIPS
 
-Este é um jogo simples de **Jogo da Velha (Tic-Tac-Toe)** implementado em linguagem Assembly para arquitetura MIPS. Ele é projetado para ser executado em um simulador MIPS, como o **QtSpim** ou **MARS**.
+Este é um jogo simples de **Jogo da Velha (Tic-Tac-Toe)** implementado em linguagem Assembly para arquitetura MIPS. Ele é projetado para ser executado em um simulador MIPS, como o **MARS**.
 
 ---
 
